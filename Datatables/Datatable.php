@@ -315,6 +315,11 @@ class Datatable
                 $metadata = $this->em->getClassMetadata(
                         $metadata->getAssociationTargetClass($entityName)
                 );
+                
+                if ($metadata->hasField(lcfirst($lastField))) {
+                    $association['type'] = $metadata->getTypeOfField(lcfirst($lastField));
+                }
+                
                 $joinName .= '_' . $this->getJoinName(
                                 $metadata, Container::camelize($metadata->getTableName()), $entityName
                 );
@@ -362,6 +367,41 @@ class Datatable
         $association['fieldName'] = $fieldName;
         $association['entityName'] = $this->tableName;
         $association['fullName'] = $this->tableName . '.' . lcfirst($fieldName);
+        $association['type'] = $this->metadata->getTypeOfField(lcfirst($fieldName));
+    }
+    
+    /**
+     * reverses and hyphens date time string
+     * @param strng $str
+     * @return string
+     */
+    private function formatDateForDb($str)
+    {
+
+        // allow for hyphens instead of slashes
+        $str = str_replace('-', '/', trim($str));
+
+        // no hyphens - nothing to do 
+        if (false === strpos($str, '/')) {
+            return $str;
+        }
+
+        // extract date time
+        $parts = preg_split('/ /', $str);
+
+        // reverse date part
+        $a = explode('/', $parts[0]);
+        $a = array_reverse($a);
+
+        // glue back together with hyphens
+        $out = implode('-', $a);
+
+        // add time part back on
+        if (count($parts) > 1) {
+            $out .= ' ' . $parts[1];
+        }
+
+        return $out;
     }
 
     /**
@@ -479,7 +519,11 @@ class Datatable
                     $orExpr->add($qb->expr()->like(
                                     $this->associations[$i]['fullName'], ":$qbParam"
                     ));
-                    $qb->setParameter($qbParam, "%" . $this->request['sSearch'] . "%");
+                    if('datetime' == $this->associations[$i]['type']) {
+                        $qb->setParameter($qbParam, "%" . $this->formatDateForDb($this->request['sSearch']) . "%");
+                    } else {
+                        $qb->setParameter($qbParam, "%" . $this->request['sSearch'] . "%");
+                    }
                 }
             }
             $qb->where($orExpr);
