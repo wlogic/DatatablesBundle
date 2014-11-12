@@ -333,7 +333,6 @@ class Datatable
                 if ($multipleJoin) {
                     $joinName .= '_' . $this->count++;
                 }
-                error_log($joinName);
                 if (!isset($this->assignedJoins[$joinName])) {
                     $this->assignedJoins[$joinName]['joinOn'] = $joinOn;
                     $this->assignedJoins[$joinName]['mdataColumn'] = $columnName;
