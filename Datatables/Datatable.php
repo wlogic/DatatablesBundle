@@ -195,6 +195,12 @@ class Datatable
      */
     protected $datatable;
 
+    /**
+     *
+     * @var integer Used to add associations multiple times if required
+     */
+    protected $count = 1;
+
     public function __construct(array $request, EntityRepository $repository, ClassMetadata $metadata, EntityManager $em, $serializer)
     {
         $this->em = $em;
@@ -294,7 +300,7 @@ class Datatable
      * @param array Association information for a column (by reference)
      * @param array The column fields from dotted notation
      */
-    protected function setRelatedEntityColumnInfo(array &$association, array $fields)
+    protected function setRelatedEntityColumnInfo(array &$association, array $fields, $multipleJoin = false)
     {
         $mdataName = implode('.', $fields);
         $lastField = Container::camelize(array_pop($fields));
@@ -315,10 +321,18 @@ class Datatable
                 $metadata = $this->em->getClassMetadata(
                         $metadata->getAssociationTargetClass($entityName)
                 );
+
+                if ($metadata->hasField(lcfirst($lastField))) {
+                    $association['type'] = $metadata->getTypeOfField(lcfirst($lastField));
+                }
+
                 $joinName .= '_' . $this->getJoinName(
                                 $metadata, Container::camelize($metadata->getTableName()), $entityName
                 );
                 // The join required to get to the entity in question
+                if ($multipleJoin) {
+                    $joinName .= '_' . $this->count++;
+                }
                 if (!isset($this->assignedJoins[$joinName])) {
                     $this->assignedJoins[$joinName]['joinOn'] = $joinOn;
                     $this->assignedJoins[$joinName]['mdataColumn'] = $columnName;
@@ -362,6 +376,41 @@ class Datatable
         $association['fieldName'] = $fieldName;
         $association['entityName'] = $this->tableName;
         $association['fullName'] = $this->tableName . '.' . lcfirst($fieldName);
+        $association['type'] = $this->metadata->getTypeOfField(lcfirst($fieldName));
+    }
+
+    /**
+     * reverses and hyphens date time string
+     * @param strng $str
+     * @return string
+     */
+    private function formatDateForDb($str)
+    {
+
+        // allow for hyphens instead of slashes
+        $str = str_replace('-', '/', trim($str));
+
+        // no hyphens - nothing to do 
+        if (false === strpos($str, '/')) {
+            return $str;
+        }
+
+        // extract date time
+        $parts = preg_split('/ /', $str);
+
+        // reverse date part
+        $a = explode('/', $parts[0]);
+        $a = array_reverse($a);
+
+        // glue back together with hyphens
+        $out = implode('-', $a);
+
+        // add time part back on
+        if (count($parts) > 1) {
+            $out .= ' ' . $parts[1];
+        }
+
+        return $out;
     }
 
     /**
@@ -479,7 +528,11 @@ class Datatable
                     $orExpr->add($qb->expr()->like(
                                     $this->associations[$i]['fullName'], ":$qbParam"
                     ));
-                    $qb->setParameter($qbParam, "%" . $this->request['sSearch'] . "%");
+                    if ('datetime' == $this->associations[$i]['type']) {
+                        $qb->setParameter($qbParam, "%" . $this->formatDateForDb($this->request['sSearch']) . "%");
+                    } else {
+                        $qb->setParameter($qbParam, "%" . $this->request['sSearch'] . "%");
+                    }
                 }
             }
             $qb->where($orExpr);
@@ -524,11 +577,11 @@ class Datatable
      * 
      * @param type $name - the dotted notation like in mData of the field you need adding
      */
-    public function addManualAssociation($name)
+    public function addManualAssociation($name, $multipleJoin = false)
     {
         $newAssociation = array('containsCollections' => false);
         $fields = explode('.', $name);
-        $this->setRelatedEntityColumnInfo($newAssociation, $fields);
+        $this->setRelatedEntityColumnInfo($newAssociation, $fields, $multipleJoin);
         $this->associations[] = $newAssociation;
     }
 
