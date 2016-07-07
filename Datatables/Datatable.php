@@ -560,18 +560,6 @@ class Datatable
         }
     }
 	
-	/**
-     * Adds a manual association
-     * 
-     * @param type $name - the dotted notation like in mData of the field you need adding
-     */
-    public function addManualAssociation($name) {
-        $newAssociation = array('containsCollections' => false);
-        $fields = explode('.', $name);
-        $this->setRelatedEntityColumnInfo($newAssociation, $fields);
-        $this->associations[] = $newAssociation;
-    }
-
     /**
      * Adds a manual association
      * 
