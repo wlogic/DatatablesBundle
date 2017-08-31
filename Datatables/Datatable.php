@@ -582,12 +582,32 @@ class Datatable
     {
         foreach ($this->assignedJoins as $joinName => $joinInfo) {
             $joinType = isset($this->joinTypes[$joinInfo['mdataColumn']]) ?
-                    $this->joinTypes[$joinInfo['mdataColumn']] : $this->defaultJoinType;
+                $this->joinTypes[$joinInfo['mdataColumn']] : $this->defaultJoinType;
             call_user_func_array(array($qb, $joinType . 'Join'), array(
                 $joinInfo['joinOn'],
-                $joinName
+                $joinName,
+                isset($joinInfo['conditionType']) ? $joinInfo['conditionType'] : null,
+                isset($joinInfo['condition']) ? $joinInfo['condition'] : null
             ));
         }
+    }
+
+    /**
+     * Add join condition to enable joins across multiple columns
+     *
+     * @param $joinName
+     * @param array $joinInfo
+     */
+    public function addMultipleJoinCondition($joinName, array $joinInfo)
+    {
+        $this->assignedJoins[$joinName] = [
+            'joinOn' => $joinInfo['joinOn'],
+            'mdataColumn' => $joinInfo['mdataColumn'],
+            'conditionType' => $joinInfo['conditionType'],
+            'condition' => $this->qb->expr()->eq(
+                $joinInfo['conditionX'], $joinInfo['conditionY']
+            )
+        ];
     }
 
     /**
