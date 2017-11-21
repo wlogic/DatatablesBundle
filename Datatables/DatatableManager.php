@@ -59,7 +59,7 @@ class DatatableManager
         $class = $this->getClassName($class);
 
         $datatable = new Datatable(
-            $this->container->get('request')->query->all(),
+            $this->container->get('request_stack')->getCurrentRequest()->query->all(),
             $this->doctrine->getManager($this->manager)->getRepository($class),
             $this->doctrine->getManager($this->manager)->getClassMetadata($class),
             $this->doctrine->getManager($this->manager),
